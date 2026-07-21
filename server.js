@@ -61,17 +61,24 @@ app.get('/health', (req, res) => res.json({ ok: true, service: 'Beet House Cup A
 
 // ── DB test ──
 app.get('/db-test', async (req, res) => {
-  const dbUrl = process.env.DATABASE_URL;
+  const vars = {
+    DATABASE_URL:         process.env.DATABASE_URL,
+    DATABASE_PRIVATE_URL: process.env.DATABASE_PRIVATE_URL,
+    POSTGRES_URL:         process.env.POSTGRES_URL,
+    RAILWAY_DATABASE_URL: process.env.RAILWAY_DATABASE_URL,
+    POSTGRESQL_URL:       process.env.POSTGRESQL_URL,
+  };
+  const found = Object.entries(vars).find(([,v]) => !!v);
   try {
     const { rows } = await pool.query('SELECT NOW() as time');
-    res.json({ ok: true, time: rows[0].time });
+    res.json({ ok: true, time: rows[0].time, usingVar: found?.[0] || 'none' });
   } catch (err) {
     res.status(500).json({
       ok: false,
       error: err.message || '(empty)',
       code: err.code || null,
-      dbUrlSet: !!dbUrl,
-      dbUrlPrefix: dbUrl ? dbUrl.slice(0, 20) + '...' : 'NOT SET',
+      varsFound: Object.entries(vars).filter(([,v])=>!!v).map(([k])=>k),
+      hint: 'Check Railway Postgres plugin is in same project and DATABASE_URL reference is linked',
     });
   }
 });

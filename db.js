@@ -1,9 +1,18 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
+// Railway uses different variable names depending on setup — try all of them
+const connStr =
+  process.env.DATABASE_URL ||
+  process.env.DATABASE_PRIVATE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.RAILWAY_DATABASE_URL ||
+  process.env.POSTGRESQL_URL ||
+  null;
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  connectionString: connStr,
+  ssl: connStr ? { rejectUnauthorized: false } : false,
 });
 
 async function init() {
