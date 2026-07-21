@@ -61,11 +61,18 @@ app.get('/health', (req, res) => res.json({ ok: true, service: 'Beet House Cup A
 
 // ── DB test ──
 app.get('/db-test', async (req, res) => {
+  const dbUrl = process.env.DATABASE_URL;
   try {
     const { rows } = await pool.query('SELECT NOW() as time');
     res.json({ ok: true, time: rows[0].time });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({
+      ok: false,
+      error: err.message || '(empty)',
+      code: err.code || null,
+      dbUrlSet: !!dbUrl,
+      dbUrlPrefix: dbUrl ? dbUrl.slice(0, 20) + '...' : 'NOT SET',
+    });
   }
 });
 
