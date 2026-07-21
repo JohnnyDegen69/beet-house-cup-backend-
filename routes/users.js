@@ -90,6 +90,23 @@ router.patch('/:id', ...requireRole('admin'), async (req, res) => {
   }
 });
 
+// POST /api/users/:id/reset-password — admin resets a user's password
+router.post('/:id/reset-password', ...requireRole('admin'), async (req, res) => {
+  try {
+    const tempPass = 'Beet' + (Math.floor(Math.random()*9000)+1000);
+    const hash     = await bcrypt.hash(tempPass, 10);
+    const { rows } = await pool.query(
+      `UPDATE users SET password_hash=$1, must_change_password=TRUE
+       WHERE id=$2 RETURNING id, name, username, role`,
+      [hash, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json({ ok: true, tempPassword: tempPass, user: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/users/import/students — bulk import (admin)
 router.post('/import/students', ...requireRole('admin'), async (req, res) => {
   const { rows: inputRows, skipDuplicates = false } = req.body;
