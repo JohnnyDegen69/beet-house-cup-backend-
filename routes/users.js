@@ -112,12 +112,10 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
     const parentLastName  = (r.parentLastName||r.parentlastname||'').trim();
     const parentEmail     = (r.parentEmail||r.parentemail||'').trim();
 
-    if (!firstName)       { errors.push(`Row ${i+1}: missing firstName`);       continue; }
-    if (!lastName)        { errors.push(`Row ${i+1}: missing lastName`);        continue; }
-    if (!parentFirstName) { errors.push(`Row ${i+1}: missing parentFirstName`); continue; }
-    if (!parentLastName)  { errors.push(`Row ${i+1}: missing parentLastName`);  continue; }
+    if (!firstName) { errors.push(`Row ${i+1}: missing firstName`); continue; }
+    if (!lastName)  { errors.push(`Row ${i+1}: missing lastName`);  continue; }
     if (!VALID_HOUSES.includes(crew)) {
-      errors.push(`Row ${i+1}: invalid crew "${crew}"`); continue;
+      errors.push(`Row ${i+1}: invalid crew "${crew}" (valid: ${VALID_HOUSES.join(', ')})`); continue;
     }
 
     const name     = `${firstName} ${lastName}`;
