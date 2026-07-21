@@ -51,6 +51,31 @@ async function init() {
       active     BOOLEAN DEFAULT TRUE,
       created_at TIMESTAMP DEFAULT NOW()
     );
+
+    -- FERPA: immutable audit trail of all access and mutations
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id           TEXT PRIMARY KEY,
+      actor_id     TEXT,
+      actor_role   TEXT,
+      actor_name   TEXT,
+      action       TEXT NOT NULL,
+      resource     TEXT NOT NULL,
+      resource_id  TEXT,
+      detail       TEXT,
+      ip           TEXT,
+      created_at   TIMESTAMP DEFAULT NOW()
+    );
+
+    -- FERPA: deletion requests (soft-delete with reason)
+    CREATE TABLE IF NOT EXISTS deletion_requests (
+      id           TEXT PRIMARY KEY,
+      student_id   TEXT NOT NULL,
+      requested_by TEXT NOT NULL,
+      reason       TEXT DEFAULT '',
+      status       TEXT DEFAULT 'pending',
+      created_at   TIMESTAMP DEFAULT NOW(),
+      resolved_at  TIMESTAMP
+    );
   `);
 
   console.log('[db] Tables ready');

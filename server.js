@@ -1,21 +1,52 @@
 require('dotenv').config();
-const express = require('express');
-const cors    = require('cors');
-const bcrypt  = require('bcryptjs');
+const express   = require('express');
+const cors      = require('cors');
+const helmet    = require('helmet');
+const rateLimit = require('express-rate-limit');
+const bcrypt    = require('bcryptjs');
 const { v4: uuid } = require('uuid');
 const { pool, init } = require('./db');
+const { auditMiddleware } = require('./middleware/audit');
 
 const authRouter         = require('./routes/auth');
 const usersRouter        = require('./routes/users');
 const transactionsRouter = require('./routes/transactions');
 const purchasesRouter    = require('./routes/purchases');
 const tasksRouter        = require('./routes/tasks');
+const adminRouter        = require('./routes/admin');
 
 const app = express();
 
+// ── Security headers (FERPA-aligned) ──
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+// ── CORS ──
 app.use(cors());
 app.options('*', cors());
+
+// ── Rate limiting ──
+// Global: 300 req/15min per IP
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+}));
+
+// Stricter limit on auth endpoints: 20 attempts/15min (brute-force protection)
+app.use('/auth', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many login attempts, please try again in 15 minutes.' },
+}));
+
 app.use(express.json());
+
+// ── FERPA audit middleware ──
+app.use(auditMiddleware);
 
 // ── Routes ──
 app.use('/auth',              authRouter);
@@ -23,6 +54,7 @@ app.use('/api/users',         usersRouter);
 app.use('/api/transactions',  transactionsRouter);
 app.use('/api/purchases',     purchasesRouter);
 app.use('/api/tasks',         tasksRouter);
+app.use('/api/admin',         adminRouter);
 
 // ── Health ──
 app.get('/health', (req, res) => res.json({ ok: true, service: 'Beet House Cup API' }));

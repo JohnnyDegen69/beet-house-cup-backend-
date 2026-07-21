@@ -57,6 +57,27 @@ Node.js + Express + PostgreSQL backend for the Beet House Cup school gamificatio
 | DELETE | `/api/tasks/:id` | Admin | Delete task |
 | POST | `/api/tasks/import` | Admin | Bulk import tasks |
 
+## FERPA Technical Compliance
+
+| Control | Implementation |
+|---|---|
+| Encryption in transit | Railway HTTPS/TLS (enforced) |
+| Encryption at rest | Railway managed Postgres (encrypted) |
+| Access control | JWT + role-based middleware (student/teacher/admin) |
+| Audit logging | Every login, access, and mutation logged to `audit_log` table |
+| Failed login tracking | Every failed attempt logged with IP |
+| Brute-force protection | Auth endpoints rate-limited to 20 req/15min per IP |
+| Security headers | Helmet.js (XSS, clickjacking, MIME sniffing protection) |
+| No PII in server logs | Console output auto-redacted before hitting Railway logs |
+| Right to inspect | `GET /api/admin/export/student/:id` — full record export |
+| Right to deletion | Two-step: request → confirm hard delete of all student records |
+| Deletion audit trail | All deletions permanently logged even after data is gone |
+
+> **Note:** Technical controls alone do not constitute full FERPA compliance.
+> The school/district must also: (1) sign a Data Processing Agreement with Railway,
+> (2) designate a FERPA officer, (3) provide written notice to parents,
+> and (4) conduct annual staff training.
+
 ## Deploy to Railway
 
 1. Push this repo to GitHub

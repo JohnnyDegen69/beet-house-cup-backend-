@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt  = require('bcryptjs');
 const { pool } = require('../db');
 const { signToken, requireAuth } = require('../middleware/auth');
+const { writeAudit } = require('../middleware/audit');
 
 const router = express.Router();
 
@@ -17,11 +18,20 @@ router.post('/login', async (req, res) => {
       [username.toLowerCase().trim()]
     );
     const user = rows[0];
-    if (!user) return res.status(401).json({ error: 'Invalid username or password' });
+    const ip   = req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress;
+
+    if (!user) {
+      await writeAudit({ action:'LOGIN_FAILED', resource:'/auth/login', detail:`Unknown username: ${username}`, ip });
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
 
     const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) return res.status(401).json({ error: 'Invalid username or password' });
+    if (!match) {
+      await writeAudit({ actorId:user.id, actorRole:user.role, actorName:user.username, action:'LOGIN_FAILED', resource:'/auth/login', detail:'Bad password', ip });
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
 
+    await writeAudit({ actorId:user.id, actorRole:user.role, actorName:user.username, action:'LOGIN_SUCCESS', resource:'/auth/login', ip });
     const token = signToken(user);
     res.json({ token, user: sanitize(user) });
   } catch (err) {
