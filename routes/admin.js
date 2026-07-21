@@ -6,6 +6,18 @@ const { writeAudit } = require('../middleware/audit');
 
 const router = express.Router();
 
+// ── POST /api/admin/wipe-users — TEMPORARY, remove after use ─────────────────
+router.post('/wipe-users', ...requireRole('admin'), async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM transactions`);
+    await pool.query(`DELETE FROM purchases`);
+    await pool.query(`DELETE FROM users WHERE role IN ('student','teacher')`);
+    res.json({ ok: true, message: 'All students and teachers deleted.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET /api/admin/audit-log ──────────────────────────────────────────────────
 // Returns paginated audit log. Admin only.
 router.get('/audit-log', ...requireRole('admin'), async (req, res) => {
