@@ -92,15 +92,16 @@ router.patch('/:id', ...requireRole('admin'), async (req, res) => {
 
 // POST /api/users/import/students — bulk import (admin)
 router.post('/import/students', ...requireRole('admin'), async (req, res) => {
-  const { rows: inputRows } = req.body;
+  const { rows: inputRows, skipDuplicates = false } = req.body;
   if (!Array.isArray(inputRows) || !inputRows.length) {
     return res.status(400).json({ error: 'rows array required' });
   }
 
-  const { rows: existing } = await pool.query('SELECT username FROM users');
-  const usernames = new Set(existing.map(u => u.username));
+  const { rows: existing } = await pool.query('SELECT username, name FROM users');
+  const usernames  = new Set(existing.map(u => u.username));
+  const existNames = new Set(existing.map(u => u.name.toLowerCase()));
 
-  const added = [], updated = [], errors = [], creds = [];
+  const added = [], updated = [], skipped = [], errors = [], creds = [];
 
   for (let i = 0; i < inputRows.length; i++) {
     const r = inputRows[i];
@@ -118,25 +119,31 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
       errors.push(`Row ${i+1}: invalid crew "${crew}" (valid: ${VALID_HOUSES.join(', ')})`); continue;
     }
 
-    const name     = `${firstName} ${lastName}`;
+    const name = `${firstName} ${lastName}`;
+
+    // Duplicate detection: match by full name (case-insensitive)
+    const isDuplicate = existNames.has(name.toLowerCase());
+
+    if (isDuplicate && skipDuplicates) {
+      skipped.push(name);
+      continue;
+    }
+
     const username = generateUsername(name, usernames);
-    const tempPass = 'Beet' + (Math.floor(Math.random()*9000)+1000);
-    const hash     = await bcrypt.hash(tempPass, 10);
     const id       = 'u' + uuid().replace(/-/g,'').slice(0,12);
 
     try {
-      const { rows: existing } = await pool.query(
-        'SELECT id FROM users WHERE username=$1', [username]
-      );
-      if (existing.length) {
+      if (isDuplicate) {
         await pool.query(
-          `UPDATE users SET name=$1,house_id=$2,grade=$3,
-            parent_first_name=$4,parent_last_name=$5,parent_email=$6
-           WHERE username=$7`,
-          [name,crew,grade,parentFirstName,parentLastName,parentEmail,username]
+          `UPDATE users SET house_id=$1,grade=$2,
+            parent_first_name=$3,parent_last_name=$4,parent_email=$5
+           WHERE LOWER(name)=$6 AND role='student'`,
+          [crew,grade,parentFirstName,parentLastName,parentEmail,name.toLowerCase()]
         );
         updated.push(name);
       } else {
+        const tempPass = 'Beet' + (Math.floor(Math.random()*9000)+1000);
+        const hash     = await bcrypt.hash(tempPass, 10);
         await pool.query(
           `INSERT INTO users
             (id,username,password_hash,role,name,house_id,grade,
@@ -146,6 +153,7 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
           [id,username,hash,name,crew,grade,parentFirstName,parentLastName,parentEmail]
         );
         usernames.add(username);
+        existNames.add(name.toLowerCase());
         added.push(name);
         creds.push({ name, grade, crew, username, tempPassword: tempPass });
       }
@@ -154,20 +162,23 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
     }
   }
 
-  res.json({ added: added.length, updated: updated.length, errors, credentials: creds });
+  res.json({ added: added.length, updated: updated.length, skipped: skipped.length,
+             addedNames: added, updatedNames: updated, skippedNames: skipped,
+             errors, credentials: creds });
 });
 
 // POST /api/users/import/teachers — bulk import (admin)
 router.post('/import/teachers', ...requireRole('admin'), async (req, res) => {
-  const { rows: inputRows } = req.body;
+  const { rows: inputRows, skipDuplicates = false } = req.body;
   if (!Array.isArray(inputRows) || !inputRows.length) {
     return res.status(400).json({ error: 'rows array required' });
   }
 
-  const { rows: existing } = await pool.query('SELECT username FROM users');
-  const usernames = new Set(existing.map(u => u.username));
+  const { rows: existing } = await pool.query('SELECT username, name FROM users');
+  const usernames  = new Set(existing.map(u => u.username));
+  const existNames = new Set(existing.map(u => u.name.toLowerCase()));
 
-  const added = [], updated = [], errors = [], creds = [];
+  const added = [], updated = [], skipped = [], errors = [], creds = [];
 
   for (let i = 0; i < inputRows.length; i++) {
     const r = inputRows[i];
@@ -179,28 +190,31 @@ router.post('/import/teachers', ...requireRole('admin'), async (req, res) => {
 
     if (!firstName) { errors.push(`Row ${i+1}: missing firstName`); continue; }
     if (!lastName)  { errors.push(`Row ${i+1}: missing lastName`);  continue; }
-    if (!crew)      { errors.push(`Row ${i+1}: missing crew`);      continue; }
     if (!VALID_HOUSES.includes(crew)) {
       errors.push(`Row ${i+1}: invalid crew "${crew}"`); continue;
     }
 
-    const name     = `${firstName} ${lastName}`;
-    const username = generateUsername(name, usernames);
-    const tempPass = 'Beet' + (Math.floor(Math.random()*9000)+1000);
-    const hash     = await bcrypt.hash(tempPass, 10);
-    const id       = 't' + uuid().replace(/-/g,'').slice(0,12);
+    const name = `${firstName} ${lastName}`;
+    const isDuplicate = existNames.has(name.toLowerCase());
+
+    if (isDuplicate && skipDuplicates) {
+      skipped.push(name);
+      continue;
+    }
+
+    const id = 't' + uuid().replace(/-/g,'').slice(0,12);
 
     try {
-      const { rows: ex } = await pool.query(
-        'SELECT id FROM users WHERE username=$1', [username]
-      );
-      if (ex.length) {
+      if (isDuplicate) {
         await pool.query(
-          'UPDATE users SET name=$1,house_id=$2,email=$3,grade=$4 WHERE username=$5',
-          [name,crew,email,grade,username]
+          'UPDATE users SET house_id=$1,email=$2,grade=$3 WHERE LOWER(name)=$4 AND role=\'teacher\'',
+          [crew,email,grade,name.toLowerCase()]
         );
         updated.push(name);
       } else {
+        const username = generateUsername(name, usernames);
+        const tempPass = 'Beet' + (Math.floor(Math.random()*9000)+1000);
+        const hash     = await bcrypt.hash(tempPass, 10);
         await pool.query(
           `INSERT INTO users
             (id,username,password_hash,role,name,house_id,email,grade,must_change_password)
@@ -208,6 +222,7 @@ router.post('/import/teachers', ...requireRole('admin'), async (req, res) => {
           [id,username,hash,name,crew,email,grade]
         );
         usernames.add(username);
+        existNames.add(name.toLowerCase());
         added.push(name);
         creds.push({ name, grade, crew, email, username, tempPassword: tempPass });
       }
@@ -216,7 +231,9 @@ router.post('/import/teachers', ...requireRole('admin'), async (req, res) => {
     }
   }
 
-  res.json({ added: added.length, updated: updated.length, errors, credentials: creds });
+  res.json({ added: added.length, updated: updated.length, skipped: skipped.length,
+             addedNames: added, updatedNames: updated, skippedNames: skipped,
+             errors, credentials: creds });
 });
 
 module.exports = router;
