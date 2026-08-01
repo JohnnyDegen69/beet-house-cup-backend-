@@ -7,6 +7,27 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 const VALID_HOUSES = ['ruby','golden','ring','sugar','mangel','silver'];
 
+// Normalize crew input — accept common variations like "Rubyroot Crew", "ruby root", "chioggia", etc.
+function normalizeCrew(raw) {
+  const v = (raw||'').toLowerCase().trim().replace(/\s+/g,' ');
+  if (!v) return '';
+  // exact match first
+  if (VALID_HOUSES.includes(v)) return v;
+  // strip "root" suffix and "crew" suffix, then try again
+  const stripped = v.replace(/root\s*(crew)?$/, '').replace(/\s*crew$/, '').trim();
+  if (VALID_HOUSES.includes(stripped)) return stripped;
+  // alias map for legacy / alternate names
+  const aliases = {
+    red: 'ruby', rubyroot: 'ruby', 'ruby root': 'ruby', 'rubyroot crew': 'ruby', 'red beet': 'ruby',
+    goldenroot: 'golden', 'golden root': 'golden', 'goldenroot crew': 'golden', 'golden beet': 'golden',
+    ringroot: 'ring', 'ring root': 'ring', 'ringroot crew': 'ring', chioggia: 'ring', 'chioggia beet': 'ring',
+    sugarroot: 'sugar', 'sugar root': 'sugar', 'sugarroot crew': 'sugar', 'sugar beet': 'sugar',
+    mangelroot: 'mangel', 'mangel root': 'mangel', 'mangelroot crew': 'mangel', 'mangle': 'mangel',
+    silverroot: 'silver', 'silver root': 'silver', 'silverroot crew': 'silver',
+  };
+  return aliases[v] || aliases[stripped] || v;
+}
+
 function sanitize(u) {
   const { password_hash, ...safe } = u;
   return safe;
@@ -124,7 +145,7 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
     const r = inputRows[i];
     const firstName       = (r.firstName||r.firstname||'').trim();
     const lastName        = (r.lastName||r.lastname||'').trim();
-    const crew            = (r.crew||r.house||'').toLowerCase().trim();
+    const crew            = normalizeCrew(r.crew||r.house||'');
     const grade           = (r.grade||'').trim();
     const parentFirstName = (r.parentFirstName||r.parentfirstname||'').trim();
     const parentLastName  = (r.parentLastName||r.parentlastname||'').trim();
@@ -133,7 +154,7 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
     if (!firstName) { errors.push(`Row ${i+1}: missing firstName`); continue; }
     if (!lastName)  { errors.push(`Row ${i+1}: missing lastName`);  continue; }
     if (!VALID_HOUSES.includes(crew)) {
-      errors.push(`Row ${i+1}: invalid crew "${crew}" (valid: ${VALID_HOUSES.join(', ')})`); continue;
+      errors.push(`Row ${i+1}: invalid crew "${r.crew||r.house||''}" (valid: ${VALID_HOUSES.join(', ')})`); continue;
     }
 
     const name = `${firstName} ${lastName}`;
@@ -201,14 +222,14 @@ router.post('/import/teachers', ...requireRole('admin'), async (req, res) => {
     const r = inputRows[i];
     const firstName = (r.firstName||r.firstname||'').trim();
     const lastName  = (r.lastName||r.lastname||'').trim();
-    const crew      = (r.crew||r.house||'').toLowerCase().trim();
+    const crew      = normalizeCrew(r.crew||r.house||'');
     const email     = (r.email||'').trim();
     const grade     = (r.grade||'').trim();
 
     if (!firstName) { errors.push(`Row ${i+1}: missing firstName`); continue; }
     if (!lastName)  { errors.push(`Row ${i+1}: missing lastName`);  continue; }
     if (!VALID_HOUSES.includes(crew)) {
-      errors.push(`Row ${i+1}: invalid crew "${crew}"`); continue;
+      errors.push(`Row ${i+1}: invalid crew "${r.crew||r.house||''}"`); continue;
     }
 
     const name = `${firstName} ${lastName}`;
