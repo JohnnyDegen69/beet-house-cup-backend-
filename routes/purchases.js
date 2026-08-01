@@ -40,22 +40,31 @@ router.post('/', requireAuth, async (req, res) => {
       [studentId]
     );
     if (!student) return res.status(404).json({ error: 'Student not found' });
-    if (student.points < cost) {
-      return res.status(400).json({ error: `Not enough points (have ${student.points}, need ${cost})` });
-    }
-    // Deduct points
-    const { rows: [updated] } = await pool.query(
-      'UPDATE users SET points=points-$1 WHERE id=$2 RETURNING id,name,points',
-      [cost, studentId]
+
+    // EPIC wallet = sum of EPIC-tagged positive transactions - sum of prior purchases
+    const { rows: [epicRow] } = await pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN epic_cat IS NOT NULL AND delta > 0 THEN delta ELSE 0 END), 0)::int AS earned
+       FROM transactions WHERE student_id=$1`,
+      [studentId]
     );
-    // Record purchase
+    const { rows: [spentRow] } = await pool.query(
+      `SELECT COALESCE(SUM(cost), 0)::int AS spent FROM purchases WHERE student_id=$1`,
+      [studentId]
+    );
+    const epicWallet = (epicRow.earned || 0) - (spentRow.spent || 0);
+    if (epicWallet < cost) {
+      return res.status(400).json({ error: `Not enough EPIC points (wallet: ${epicWallet}, need ${cost})` });
+    }
+
+    // Do NOT deduct from users.points — race/crew totals are unaffected by store purchases
+    // Record purchase only
     const id = 'p' + uuid().replace(/-/g,'').slice(0,10);
     const { rows: [purchase] } = await pool.query(
       `INSERT INTO purchases (id,student_id,item_id,item_name,cost)
        VALUES($1,$2,$3,$4,$5) RETURNING *`,
       [id, studentId, itemId, itemName, cost]
     );
-    res.json({ purchase, student: updated });
+    res.json({ purchase, student, epicWallet: epicWallet - cost });
   } catch (err) {
     console.error('[purchases/post]', err);
     res.status(500).json({ error: err.message });
