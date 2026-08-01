@@ -178,4 +178,32 @@ router.delete('/reset-students', ...requireRole('admin'), async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// POST /api/admin/reset-credentials — reset passwords for all users of a role, return credentials
+router.post('/reset-credentials', ...requireRole('admin'), async (req, res) => {
+  const { role } = req.body;
+  if (!['student','teacher','admin'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role. Must be student, teacher, or admin.' });
+  }
+  try {
+    const { rows: users } = await pool.query(
+      `SELECT id, name, username, house_id FROM users WHERE role=$1 ORDER BY name`, [role]
+    );
+    const bcrypt = require('bcryptjs');
+    const credentials = [];
+    for (const u of users) {
+      const tempPass = 'Beet' + (Math.floor(Math.random() * 9000) + 1000);
+      const hash = await bcrypt.hash(tempPass, 10);
+      await pool.query(
+        `UPDATE users SET password_hash=$1, must_change_password=TRUE WHERE id=$2`,
+        [hash, u.id]
+      );
+      credentials.push({ name: u.name, crew: u.house_id || '', username: u.username, tempPassword: tempPass });
+    }
+    await writeAudit({ actorId: req.user?.id, actorName: req.user?.name || 'admin', action: 'RESET_CREDENTIALS', detail: `Reset passwords for ${credentials.length} ${role}(s)`, req });
+    res.json({ ok: true, credentials });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
