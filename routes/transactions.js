@@ -27,17 +27,19 @@ router.get('/', requireAuth, async (req, res) => {
 
 // POST /api/transactions — award/deduct points (teacher+)
 router.post('/', ...requireRole('admin','teacher'), async (req, res) => {
-  const { studentId, delta, reason } = req.body;
+  const { studentId, delta, reason, epicCat } = req.body;
   if (!studentId || delta === undefined || delta === 0) {
     return res.status(400).json({ error: 'studentId and non-zero delta required' });
   }
   try {
+    // Ensure epic_cat column exists (safe to run each time — no-op if already exists)
+    await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS epic_cat TEXT DEFAULT NULL`).catch(()=>{});
     const id = 'tx' + uuid().replace(/-/g,'').slice(0,10);
     // Insert transaction
     const { rows: [txn] } = await pool.query(
-      `INSERT INTO transactions (id,student_id,delta,reason,teacher_id)
-       VALUES($1,$2,$3,$4,$5) RETURNING *`,
-      [id, studentId, delta, reason||'', req.user.id]
+      `INSERT INTO transactions (id,student_id,delta,reason,teacher_id,epic_cat)
+       VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [id, studentId, delta, reason||'', req.user.id, epicCat||null]
     );
     // Update student's points
     const { rows: [student] } = await pool.query(

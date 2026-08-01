@@ -40,6 +40,7 @@ async function init() {
       delta       INTEGER NOT NULL,
       reason      TEXT DEFAULT '',
       teacher_id  TEXT DEFAULT '',
+      epic_cat    TEXT DEFAULT NULL,
       created_at  TIMESTAMP DEFAULT NOW()
     );
 
