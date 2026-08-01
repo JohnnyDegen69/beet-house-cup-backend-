@@ -169,6 +169,26 @@ router.get('/deletion-requests', ...requireRole('admin'), async (req, res) => {
   }
 });
 
+// DELETE /api/admin/user/:id — hard delete any single user + their records (admin only)
+router.delete('/user/:id', ...requireRole('admin'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(`SELECT name, role FROM users WHERE id=$1`, [id]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    const { name, role } = rows[0];
+    if (role === 'admin' && id === req.user?.id) {
+      return res.status(400).json({ error: 'Cannot delete your own admin account.' });
+    }
+    await pool.query(`DELETE FROM purchases    WHERE student_id=$1`, [id]);
+    await pool.query(`DELETE FROM transactions WHERE student_id=$1`, [id]);
+    await pool.query(`DELETE FROM users        WHERE id=$1`,         [id]);
+    await writeAudit({ actorId: req.user?.id, actorName: req.user?.name || 'admin', action: 'DELETE_USER', detail: `Deleted ${role}: ${name}`, req });
+    res.json({ ok: true, deleted: name });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete('/reset-students', ...requireRole('admin'), async (req, res) => {
   try {
     await pool.query(`DELETE FROM purchases    WHERE student_id IN (SELECT id FROM users WHERE role='student')`);
