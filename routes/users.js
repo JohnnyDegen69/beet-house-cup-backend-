@@ -63,6 +63,18 @@ router.get('/students', ...requireRole('admin','teacher'), async (req, res) => {
   }
 });
 
+// GET /api/users/crew-members — public student roster (name + points + crew only, no personal info)
+router.get('/crew-members', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT id, name, house_id, points FROM users WHERE role='student' ORDER BY name"
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/users/house-totals — summed points per house (all authed)
 router.get('/house-totals', requireAuth, async (req, res) => {
   try {
