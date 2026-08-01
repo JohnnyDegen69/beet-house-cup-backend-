@@ -169,4 +169,13 @@ router.get('/deletion-requests', ...requireRole('admin'), async (req, res) => {
   }
 });
 
+router.delete('/reset-students', ...requireRole('admin'), async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM purchases    WHERE student_id IN (SELECT id FROM users WHERE role='student')`);
+    await pool.query(`DELETE FROM transactions WHERE student_id IN (SELECT id FROM users WHERE role='student')`);
+    const { rowCount } = await pool.query(`DELETE FROM users WHERE role='student'`);
+    res.json({ ok: true, deleted: rowCount });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
