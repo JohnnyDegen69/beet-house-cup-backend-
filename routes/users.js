@@ -104,13 +104,14 @@ router.get('/me', requireAuth, async (req, res) => {
 
 // PATCH /api/users/:id — update points or info (admin)
 router.patch('/:id', ...requireRole('admin'), async (req, res) => {
-  const { points, house_id, grade, name } = req.body;
+  const { points, house_id, grade, name, homeroom } = req.body;
   try {
     const sets = [], vals = [];
-    if (points  !== undefined) { sets.push(`points=$${sets.length+1}`);   vals.push(points);   }
-    if (house_id!== undefined) { sets.push(`house_id=$${sets.length+1}`); vals.push(house_id); }
-    if (grade   !== undefined) { sets.push(`grade=$${sets.length+1}`);    vals.push(grade);    }
-    if (name    !== undefined) { sets.push(`name=$${sets.length+1}`);     vals.push(name);     }
+    if (points   !== undefined) { sets.push(`points=$${sets.length+1}`);   vals.push(points);   }
+    if (house_id !== undefined) { sets.push(`house_id=$${sets.length+1}`); vals.push(house_id); }
+    if (grade    !== undefined) { sets.push(`grade=$${sets.length+1}`);    vals.push(grade);    }
+    if (name     !== undefined) { sets.push(`name=$${sets.length+1}`);     vals.push(name);     }
+    if (homeroom !== undefined) { sets.push(`homeroom=$${sets.length+1}`); vals.push(homeroom); }
     if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
     vals.push(req.params.id);
     const { rows } = await pool.query(
@@ -162,6 +163,7 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
     const parentFirstName = (r.parentFirstName||r.parentfirstname||'').trim();
     const parentLastName  = (r.parentLastName||r.parentlastname||'').trim();
     const parentEmail     = (r.parentEmail||r.parentemail||'').trim();
+    const homeroom        = (r.homeroom||r.Homeroom||'').trim();
 
     if (!firstName) { errors.push(`Row ${i+1}: missing firstName — raw row keys: ${Object.keys(r).join(', ')} | firstName value: "${r.firstName||r.firstname||'(empty)'}"`); continue; }
     if (!lastName)  { errors.push(`Row ${i+1}: missing lastName — lastName value: "${r.lastName||r.lastname||'(empty)'}"`); continue; }
@@ -186,9 +188,9 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
       if (isDuplicate) {
         await pool.query(
           `UPDATE users SET house_id=$1,grade=$2,
-            parent_first_name=$3,parent_last_name=$4,parent_email=$5
-           WHERE LOWER(name)=$6 AND role='student'`,
-          [crew,grade,parentFirstName,parentLastName,parentEmail,name.toLowerCase()]
+            parent_first_name=$3,parent_last_name=$4,parent_email=$5,homeroom=$6
+           WHERE LOWER(name)=$7 AND role='student'`,
+          [crew,grade,parentFirstName,parentLastName,parentEmail,homeroom,name.toLowerCase()]
         );
         updated.push(name);
       } else {
@@ -198,9 +200,9 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
           `INSERT INTO users
             (id,username,password_hash,role,name,house_id,grade,
              parent_first_name,parent_last_name,parent_email,
-             must_change_password)
-           VALUES($1,$2,$3,'student',$4,$5,$6,$7,$8,$9,TRUE)`,
-          [id,username,hash,name,crew,grade,parentFirstName,parentLastName,parentEmail]
+             homeroom,must_change_password)
+           VALUES($1,$2,$3,'student',$4,$5,$6,$7,$8,$9,$10,TRUE)`,
+          [id,username,hash,name,crew,grade,parentFirstName,parentLastName,parentEmail,homeroom]
         );
         usernames.add(username);
         existNames.add(name.toLowerCase());

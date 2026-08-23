@@ -31,8 +31,12 @@ async function init() {
       email                TEXT DEFAULT '',
       points               INTEGER DEFAULT 0,
       must_change_password BOOLEAN DEFAULT FALSE,
+      homeroom             TEXT DEFAULT '',
       created_at           TIMESTAMP DEFAULT NOW()
     );
+
+    -- Add homeroom to existing deployments that predate this column
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS homeroom TEXT DEFAULT '';
 
     CREATE TABLE IF NOT EXISTS transactions (
       id          TEXT PRIMARY KEY,
