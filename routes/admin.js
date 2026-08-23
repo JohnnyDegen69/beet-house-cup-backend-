@@ -218,7 +218,8 @@ router.post('/reset-credentials', ...requireRole('admin'), async (req, res) => {
     for (const u of users) {
       const usePass = fixedPassword || ('Beet' + (Math.floor(Math.random() * 9000) + 1000));
       const hash    = fixedHash || await bcrypt.hash(usePass, 10);
-      const mustChange = fixedPassword ? false : true;
+      // mustChange defaults to true (temp password) unless caller explicitly passes mustChange:false
+      const mustChange = req.body.mustChange !== undefined ? Boolean(req.body.mustChange) : true;
       await pool.query(
         `UPDATE users SET password_hash=$1, must_change_password=$2 WHERE id=$3`,
         [hash, mustChange, u.id]
