@@ -199,8 +199,9 @@ router.delete('/reset-students', ...requireRole('admin'), async (req, res) => {
 });
 
 // POST /api/admin/reset-credentials — reset passwords for all users of a role, return credentials
+// Optional body field: fixedPassword — if provided, everyone gets that exact password and must_change_password is set FALSE
 router.post('/reset-credentials', ...requireRole('admin'), async (req, res) => {
-  const { role } = req.body;
+  const { role, fixedPassword } = req.body;
   if (!['student','teacher','admin'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role. Must be student, teacher, or admin.' });
   }
@@ -210,16 +211,21 @@ router.post('/reset-credentials', ...requireRole('admin'), async (req, res) => {
     );
     const bcrypt = require('bcryptjs');
     const credentials = [];
+
+    // Pre-hash the fixed password once if provided (saves time vs hashing per-user)
+    const fixedHash = fixedPassword ? await bcrypt.hash(fixedPassword, 10) : null;
+
     for (const u of users) {
-      const tempPass = 'Beet' + (Math.floor(Math.random() * 9000) + 1000);
-      const hash = await bcrypt.hash(tempPass, 10);
+      const usePass = fixedPassword || ('Beet' + (Math.floor(Math.random() * 9000) + 1000));
+      const hash    = fixedHash || await bcrypt.hash(usePass, 10);
+      const mustChange = fixedPassword ? false : true;
       await pool.query(
-        `UPDATE users SET password_hash=$1, must_change_password=TRUE WHERE id=$2`,
-        [hash, u.id]
+        `UPDATE users SET password_hash=$1, must_change_password=$2 WHERE id=$3`,
+        [hash, mustChange, u.id]
       );
-      credentials.push({ name: u.name, crew: u.house_id || '', username: u.username, tempPassword: tempPass });
+      credentials.push({ name: u.name, crew: u.house_id || '', username: u.username, tempPassword: usePass });
     }
-    await writeAudit({ actorId: req.user?.id, actorName: req.user?.name || 'admin', action: 'RESET_CREDENTIALS', detail: `Reset passwords for ${credentials.length} ${role}(s)`, req });
+    await writeAudit({ actorId: req.user?.id, actorName: req.user?.name || 'admin', action: 'RESET_CREDENTIALS', detail: `Reset passwords for ${credentials.length} ${role}(s)${fixedPassword ? ' to fixed shared password' : ''}`, req });
     res.json({ ok: true, credentials });
   } catch (err) {
     res.status(500).json({ error: err.message });
