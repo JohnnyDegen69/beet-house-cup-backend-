@@ -167,6 +167,7 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
 
     if (!firstName) { errors.push(`Row ${i+1}: missing firstName — raw row keys: ${Object.keys(r).join(', ')} | firstName value: "${r.firstName||r.firstname||'(empty)'}"`); continue; }
     if (!lastName)  { errors.push(`Row ${i+1}: missing lastName — lastName value: "${r.lastName||r.lastname||'(empty)'}"`); continue; }
+    if (!grade)     { errors.push(`Row ${i+1} (${firstName} ${lastName}): missing grade — grade is required`); continue; }
     if (!VALID_HOUSES.includes(crew)) {
       errors.push(`Row ${i+1} (${firstName} ${lastName}): invalid crew "${r.crew||r.house||''}" → normalized to "${crew}" (valid: ${VALID_HOUSES.join(', ')})`); continue;
     }
