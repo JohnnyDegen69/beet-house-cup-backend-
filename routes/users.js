@@ -126,7 +126,7 @@ router.patch('/:id', ...requireRole('admin'), async (req, res) => {
 // POST /api/users/:id/reset-password — admin resets a user's password
 router.post('/:id/reset-password', ...requireRole('admin'), async (req, res) => {
   try {
-    const tempPass = 'Beet' + (Math.floor(Math.random()*9000)+1000);
+    const tempPass = 'Brush26';
     const hash     = await bcrypt.hash(tempPass, 10);
     const { rows } = await pool.query(
       `UPDATE users SET password_hash=$1, must_change_password=TRUE
@@ -192,7 +192,7 @@ router.post('/import/students', ...requireRole('admin'), async (req, res) => {
         );
         updated.push(name);
       } else {
-        const tempPass = 'Beet' + (Math.floor(Math.random()*9000)+1000);
+        const tempPass = 'Brush26';
         const hash     = await bcrypt.hash(tempPass, 10);
         await pool.query(
           `INSERT INTO users
@@ -263,7 +263,7 @@ router.post('/import/teachers', ...requireRole('admin'), async (req, res) => {
         updated.push(name);
       } else {
         const username = generateUsername(name, usernames);
-        const tempPass = 'Beet' + (Math.floor(Math.random()*9000)+1000);
+        const tempPass = 'Brush26';
         const hash     = await bcrypt.hash(tempPass, 10);
         await pool.query(
           `INSERT INTO users
