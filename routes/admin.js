@@ -189,6 +189,16 @@ router.delete('/user/:id', ...requireRole('admin'), async (req, res) => {
   }
 });
 
+// POST /api/admin/reset-points — wipe all transactions + set all student points to 0 (keeps users intact)
+router.post('/reset-points', ...requireRole('admin'), async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM transactions`);
+    await pool.query(`DELETE FROM purchases`);
+    const { rowCount } = await pool.query(`UPDATE users SET points=0 WHERE role='student'`);
+    res.json({ ok: true, studentsReset: rowCount });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.delete('/reset-students', ...requireRole('admin'), async (req, res) => {
   try {
     await pool.query(`DELETE FROM purchases    WHERE student_id IN (SELECT id FROM users WHERE role='student')`);
