@@ -16,7 +16,7 @@ router.get('/', requireAuth, async (req, res) => {
       ));
     } else {
       ({ rows } = await pool.query(
-        'SELECT * FROM transactions ORDER BY created_at DESC LIMIT 500'
+        'SELECT * FROM transactions ORDER BY created_at DESC'
       ));
     }
     res.json(rows);
