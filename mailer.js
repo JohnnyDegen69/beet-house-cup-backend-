@@ -1,8 +1,8 @@
 const https = require('https');
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL       = process.env.FROM_EMAIL || 'noreply@beethousecup.com';
-const FROM_NAME        = process.env.FROM_NAME  || 'Beet House Cup';
+const FROM_EMAIL       = process.env.FROM_EMAIL || 'k.marlatt@brushschools.org';
+const FROM_NAME        = process.env.FROM_NAME  || 'Beet House Cup — Beaver Valley Elementary';
 
 /**
  * sendEmail({ to, toName, subject, html })
