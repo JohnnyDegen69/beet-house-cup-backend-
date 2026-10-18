@@ -23,26 +23,28 @@ async function getStudentScore(studentId) {
   };
 }
 
-// GET /api/epictivity/settings
+// GET /api/epictivity/settings — returns setting for the calling teacher
 router.get('/settings', requireAuth, async (req, res) => {
   try {
+    const key = `auto_notify_below_80:${req.user.id}`;
     const { rows } = await pool.query(
-      "SELECT key, value FROM app_settings WHERE key='auto_notify_below_80'"
+      'SELECT value FROM app_settings WHERE key=$1', [key]
     );
     const autoNotify = rows[0]?.value === 'true';
     res.json({ auto_notify_below_80: autoNotify });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PATCH /api/epictivity/settings — teacher+ can toggle
+// PATCH /api/epictivity/settings — saves setting for the calling teacher only
 router.patch('/settings', ...requireRole('admin', 'teacher'), async (req, res) => {
   const { auto_notify_below_80 } = req.body;
   if (auto_notify_below_80 === undefined) return res.status(400).json({ error: 'auto_notify_below_80 required' });
   try {
+    const key = `auto_notify_below_80:${req.user.id}`;
     await pool.query(
-      `INSERT INTO app_settings (key, value, updated_at) VALUES ('auto_notify_below_80', $1, NOW())
-       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
-      [auto_notify_below_80 ? 'true' : 'false']
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW()`,
+      [key, auto_notify_below_80 ? 'true' : 'false']
     );
     res.json({ ok: true, auto_notify_below_80: !!auto_notify_below_80 });
   } catch (err) { res.status(500).json({ error: err.message }); }

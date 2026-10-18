@@ -87,8 +87,7 @@ async function init() {
     );
     INSERT INTO app_settings (key, value) VALUES ('store_open', 'false')
       ON CONFLICT (key) DO NOTHING;
-    INSERT INTO app_settings (key, value) VALUES ('auto_notify_below_80', 'false')
-      ON CONFLICT (key) DO NOTHING;
+    -- auto_notify_below_80 is stored per-teacher as auto_notify_below_80:<userId>
 
     CREATE TABLE IF NOT EXISTS store_items (
       id         TEXT PRIMARY KEY,
