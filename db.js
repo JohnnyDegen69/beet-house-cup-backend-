@@ -80,6 +80,16 @@ async function init() {
       created_at   TIMESTAMP DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS store_items (
+      id         TEXT PRIMARY KEY,
+      category   TEXT NOT NULL,
+      name       TEXT NOT NULL,
+      cost       INTEGER NOT NULL,
+      icon       TEXT DEFAULT '',
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
     -- FERPA: deletion requests (soft-delete with reason)
     CREATE TABLE IF NOT EXISTS deletion_requests (
       id           TEXT PRIMARY KEY,
