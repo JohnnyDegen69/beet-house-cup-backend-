@@ -104,14 +104,17 @@ router.get('/me', requireAuth, async (req, res) => {
 
 // PATCH /api/users/:id — update points or info (admin)
 router.patch('/:id', ...requireRole('admin'), async (req, res) => {
-  const { points, house_id, grade, name, homeroom } = req.body;
+  const { points, house_id, grade, name, homeroom, parent_email, parent_first_name, parent_last_name } = req.body;
   try {
     const sets = [], vals = [];
-    if (points   !== undefined) { sets.push(`points=$${sets.length+1}`);   vals.push(points);   }
-    if (house_id !== undefined) { sets.push(`house_id=$${sets.length+1}`); vals.push(house_id); }
-    if (grade    !== undefined) { sets.push(`grade=$${sets.length+1}`);    vals.push(grade);    }
-    if (name     !== undefined) { sets.push(`name=$${sets.length+1}`);     vals.push(name);     }
-    if (homeroom !== undefined) { sets.push(`homeroom=$${sets.length+1}`); vals.push(homeroom); }
+    if (points            !== undefined) { sets.push(`points=$${sets.length+1}`);            vals.push(points);            }
+    if (house_id          !== undefined) { sets.push(`house_id=$${sets.length+1}`);          vals.push(house_id);          }
+    if (grade             !== undefined) { sets.push(`grade=$${sets.length+1}`);             vals.push(grade);             }
+    if (name              !== undefined) { sets.push(`name=$${sets.length+1}`);              vals.push(name);              }
+    if (homeroom          !== undefined) { sets.push(`homeroom=$${sets.length+1}`);          vals.push(homeroom);          }
+    if (parent_email      !== undefined) { sets.push(`parent_email=$${sets.length+1}`);      vals.push(parent_email);      }
+    if (parent_first_name !== undefined) { sets.push(`parent_first_name=$${sets.length+1}`); vals.push(parent_first_name); }
+    if (parent_last_name  !== undefined) { sets.push(`parent_last_name=$${sets.length+1}`);  vals.push(parent_last_name);  }
     if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
     vals.push(req.params.id);
     const { rows } = await pool.query(
