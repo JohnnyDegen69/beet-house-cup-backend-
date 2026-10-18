@@ -80,6 +80,14 @@ async function init() {
       created_at   TIMESTAMP DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key        TEXT PRIMARY KEY,
+      value      TEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    INSERT INTO app_settings (key, value) VALUES ('store_open', 'false')
+      ON CONFLICT (key) DO NOTHING;
+
     CREATE TABLE IF NOT EXISTS store_items (
       id         TEXT PRIMARY KEY,
       category   TEXT NOT NULL,

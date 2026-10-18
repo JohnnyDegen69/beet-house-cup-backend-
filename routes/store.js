@@ -85,4 +85,28 @@ router.delete('/items/:id', ...requireRole('admin'), async (req, res) => {
   }
 });
 
+// GET /api/store/settings — any authenticated user
+router.get('/settings', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT key, value FROM app_settings');
+    const settings = {};
+    rows.forEach(r => { settings[r.key] = r.value; });
+    res.json({ store_open: settings.store_open === 'true' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH /api/store/settings — admin only
+router.patch('/settings', ...requireRole('admin'), async (req, res) => {
+  const { store_open } = req.body;
+  if (store_open === undefined) return res.status(400).json({ error: 'store_open required' });
+  try {
+    await pool.query(
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ('store_open', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+      [store_open ? 'true' : 'false']
+    );
+    res.json({ ok: true, store_open: !!store_open });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
