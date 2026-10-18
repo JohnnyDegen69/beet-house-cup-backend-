@@ -15,6 +15,7 @@ const purchasesRouter    = require('./routes/purchases');
 const tasksRouter        = require('./routes/tasks');
 const adminRouter        = require('./routes/admin');
 const storeRouter        = require('./routes/store');
+const epictivityRouter   = require('./routes/epictivity');
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/api/purchases',     purchasesRouter);
 app.use('/api/tasks',         tasksRouter);
 app.use('/api/admin',         adminRouter);
 app.use('/api/store',         storeRouter);
+app.use('/api/epictivity',    epictivityRouter);
 
 // ── Health ──
 app.get('/health', (req, res) => res.json({ ok: true, service: 'Beet House Cup API' }));
