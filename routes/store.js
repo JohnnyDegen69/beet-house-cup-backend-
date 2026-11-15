@@ -85,6 +85,72 @@ router.delete('/items/:id', ...requireRole('admin'), async (req, res) => {
   }
 });
 
+// ── Store Overrides (tier enable/disable + item status) ──
+// Stored in app_settings as two JSON keys:
+//   store_tier_overrides  → { "grand-opening": true, "quick-wins": true, ... }
+//   store_item_overrides  → { "G01": "available", "Q04": "coming-soon", ... }
+
+// GET /api/store/overrides
+router.get('/overrides', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT key, value FROM app_settings WHERE key IN ('store_tier_overrides','store_item_overrides')"
+    );
+    const out = { tierOverrides: {}, itemOverrides: {} };
+    rows.forEach(r => {
+      try {
+        const parsed = JSON.parse(r.value);
+        if (r.key === 'store_tier_overrides') out.tierOverrides = parsed;
+        if (r.key === 'store_item_overrides') out.itemOverrides = parsed;
+      } catch (_) {}
+    });
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/store/overrides/tiers — admin only; set tier enabled flags
+// Body: { "grand-opening": true, "quick-wins": false, ... }
+router.patch('/overrides/tiers', ...requireRole('admin'), async (req, res) => {
+  try {
+    // Merge with existing
+    const { rows } = await pool.query(
+      "SELECT value FROM app_settings WHERE key='store_tier_overrides'"
+    );
+    const existing = rows.length ? (JSON.parse(rows[0].value) || {}) : {};
+    const merged = { ...existing, ...req.body };
+    await pool.query(
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ('store_tier_overrides',$1,NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+      [JSON.stringify(merged)]
+    );
+    res.json({ ok: true, tierOverrides: merged });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/store/overrides/items — admin only; set per-item status
+// Body: { "G01": "available", "Q04": "coming-soon", ... }
+router.patch('/overrides/items', ...requireRole('admin'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT value FROM app_settings WHERE key='store_item_overrides'"
+    );
+    const existing = rows.length ? (JSON.parse(rows[0].value) || {}) : {};
+    const merged = { ...existing, ...req.body };
+    await pool.query(
+      `INSERT INTO app_settings (key, value, updated_at) VALUES ('store_item_overrides',$1,NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+      [JSON.stringify(merged)]
+    );
+    res.json({ ok: true, itemOverrides: merged });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/store/settings — any authenticated user
 router.get('/settings', requireAuth, async (req, res) => {
   try {

@@ -49,13 +49,19 @@ async function init() {
     );
 
     CREATE TABLE IF NOT EXISTS purchases (
-      id          TEXT PRIMARY KEY,
-      student_id  TEXT NOT NULL,
-      item_id     TEXT NOT NULL,
-      item_name   TEXT NOT NULL,
-      cost        INTEGER NOT NULL,
-      created_at  TIMESTAMP DEFAULT NOW()
+      id             TEXT PRIMARY KEY,
+      student_id     TEXT NOT NULL,
+      item_id        TEXT NOT NULL,
+      item_name      TEXT NOT NULL,
+      cost           INTEGER NOT NULL,
+      scheduled_date DATE DEFAULT NULL,
+      scheduled_by   TEXT DEFAULT NULL,
+      created_at     TIMESTAMP DEFAULT NOW()
     );
+
+    -- Add scheduling columns to existing deployments
+    ALTER TABLE purchases ADD COLUMN IF NOT EXISTS scheduled_date DATE DEFAULT NULL;
+    ALTER TABLE purchases ADD COLUMN IF NOT EXISTS scheduled_by TEXT DEFAULT NULL;
 
     CREATE TABLE IF NOT EXISTS tasks (
       id         TEXT PRIMARY KEY,
