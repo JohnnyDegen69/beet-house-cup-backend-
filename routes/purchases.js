@@ -90,7 +90,7 @@ router.patch('/:id/schedule', requireAuth, async (req, res) => {
   const dateVal = scheduledDate || null;
   try {
     const { rows } = await pool.query(
-      `UPDATE purchases SET scheduled_date=$1, scheduled_by=$2 WHERE id=$3 RETURNING *`,
+      `UPDATE purchases SET scheduled_date=$1, scheduled_by=$2 WHERE id=$3 RETURNING *, scheduled_date::text AS scheduled_date`,
       [dateVal, req.user.id, req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Purchase not found' });
